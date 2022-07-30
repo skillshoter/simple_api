@@ -1,0 +1,27 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      nodejs: 12
+    commands:
+      - echo iniciando Build...
+  pre_build:
+    commands:
+      - apt-get update && apt-get install curl -y
+      - curl -fsSL https://get.docker.com | bash
+      - export AWS_ACCESS_KEY_ID=""
+      - export AWS_SECRET_ACCESS_KEY=${Access_Key}
+      - export AWS_DEFAULT_REGION="us-west-1"
+  build:
+    commands:
+      - export REPOSITORY_URI=""
+      - docker build --no-cache -t ${REPOSITORY_URI}:${CODEBUILD_BUILD_NUMBER} .
+      - docker build --no-cache -t ${REPOSITORY_URI}:latest .
+  post_build:
+    commands:
+      #- export AWS_DEFAULT_REGION="us-west-1"
+      - echo Build completed on `date`
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 000000.dkr.ecr.us-east-1.amazonaws.com
+      - docker push ${REPOSITORY_URI}:${CODEBUILD_BUILD_NUMBER}
+      - docker push ${REPOSITORY_URI}:latest
+      - aws cloudformation deploy --template-file pipeline/definition-file.yaml --stack-name webcol-agendamento-evonik-api-${Env} --capabilities CAPABILITY_NAMED_IAM --parameter-overrides VPC=${VPC} SubnetA=${SubnetA} SubnetB=${SubnetB} ElbArn=${ElbArn} Cluster=${Cluster} Env=${Env} Image=${REPOSITORY_URI}:${CODEBUILD_BUILD_NUMBER} ContainerSecurityGroup=${SG} --region ${Region}
